@@ -119,7 +119,6 @@ export interface Book {
   id: string;
   title: string;
   description?: string;
-  coverUrl: string;
   fileUrl: string;
   uploaderUid: string;
   createdAt: Timestamp;
