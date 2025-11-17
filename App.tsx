@@ -30,7 +30,9 @@ const App: React.FC = () => {
           if (docSnap.exists()) {
             const data = docSnap.data();
 
-            let finalStartDate: Date | undefined = (data.startDate as Timestamp)?.toDate();
+            const firestoreStartDate = (data.startDate as Timestamp)?.toDate();
+            let finalStartDate: Date | undefined = firestoreStartDate;
+            let sourcedFromCache = false;
 
             // If Firestore data is missing startDate, check localStorage as a fallback.
             if (!finalStartDate) {
@@ -42,16 +44,25 @@ const App: React.FC = () => {
                         if (!isNaN(cachedDate.getTime())) {
                             console.warn("Using cached startDate as a fallback due to missing Firestore data.");
                             finalStartDate = cachedDate;
+                            sourcedFromCache = true; // Mark that we got it from the cache
                         }
                     }
                 } catch (e) {
                     console.error("Failed to read startDate from localStorage", e);
                 }
             }
-
-            // If we have a valid startDate (either from Firestore or cache),
-            // update the cache to ensure it's always the latest known value.
+            
+            // If we have a valid startDate...
             if (finalStartDate) {
+                // ...and it came from the cache (meaning Firestore is out of sync), write it back to Firestore.
+                if (sourcedFromCache) {
+                    console.log("Restoring startDate to Firestore from local cache.");
+                    updateDoc(userDocRef, { startDate: finalStartDate }).catch(error => {
+                        console.error("Failed to restore startDate to Firestore:", error);
+                    });
+                }
+                
+                // Always update the local cache to ensure it's the latest known value.
                 try {
                     localStorage.setItem(`user_startDate_${user.uid}`, finalStartDate.toISOString());
                 } catch (e) {
@@ -77,6 +88,22 @@ const App: React.FC = () => {
                 data.photoURL = defaultAvatarUrl; 
             }
             
+            // Auto-assign a counter image if one doesn't exist
+            if (!data.counterImage) {
+                // Assign a default counter image deterministically based on UID
+                // Use a different character index from photoURL to reduce chance of same image
+                const counterImageIndex = (user.uid.charCodeAt(1) || 0) % AVATAR_OPTIONS.length;
+                const defaultCounterImage = AVATAR_OPTIONS[counterImageIndex];
+                
+                // Update Firestore in the background
+                updateDoc(userDocRef, { counterImage: defaultCounterImage }).catch(error => {
+                    console.error("Failed to auto-assign counter image:", error);
+                });
+                
+                // Set counterImage on the local profile data immediately for UI update
+                data.counterImage = defaultCounterImage; 
+            }
+            
             const profileData: UserProfile = {
               uid: user.uid,
               displayName: data.displayName,
@@ -84,6 +111,7 @@ const App: React.FC = () => {
               photoURL: data.photoURL,
               createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(), // Convert Timestamp to Date
               startDate: finalStartDate, // Use the potentially cached value
+              counterImage: data.counterImage,
               isAdmin: data.isAdmin ?? false,
               isMuted: data.isMuted ?? false,
               role: data.role ?? undefined,

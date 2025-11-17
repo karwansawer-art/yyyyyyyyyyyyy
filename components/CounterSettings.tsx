@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { doc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import { db } from '../services/firebase';
-import type { UserProfile, Tab } from '../types';
+import { db } from '../services/firebase.ts';
+import type { UserProfile, Tab } from '../types.ts';
 import { BackIcon, ResetIcon, CalendarIcon, ImageIcon, TrashIcon } from './ui/Icons.tsx';
-
-declare const uploadcare: any;
+import AvatarPickerModal from './ui/AvatarPickerModal.tsx';
 
 const SetDateModal: React.FC<{ onClose: () => void; onSave: (date: string) => void; }> = ({ onClose, onSave }) => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -75,6 +74,7 @@ interface CounterSettingsProps {
 const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, setActiveTab, isDeveloper }) => {
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [showSetDateModal, setShowSetDateModal] = useState(false);
+    const [showImagePicker, setShowImagePicker] = useState(false);
     const [showDeleteImageConfirm, setShowDeleteImageConfirm] = useState(false);
     
     const hasCustomImage = !!userProfile?.counterImage;
@@ -101,33 +101,20 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
         setShowSetDateModal(false);
     };
 
-    const handleSetCounterImage = (imageUrl: string) => {
-        if(isDeveloper){
-            updateDoc(doc(db, "app_config", "global_settings"), {
+    const handleSetCounterImage = async (imageUrl: string) => {
+        try {
+            await updateDoc(doc(db, "users", user.uid), {
                 counterImage: imageUrl
             });
+        } catch (error) {
+            console.error("Error setting counter image:", error);
         }
     };
     
-    const handleDeleteCounterImage = () => {
+    const handleDeleteCounterImage = async () => {
         setShowDeleteImageConfirm(false);
-        if(isDeveloper){
-            updateDoc(doc(db, "app_config", "global_settings"), {
-                counterImage: deleteField()
-            });
-        }
-    };
-
-    const openUploadcareDialog = () => {
-        const dialog = uploadcare.openDialog(null, {
-            imagesOnly: true,
-            crop: '1:1.25',
-        });
-
-        dialog.done((fileGroup: any) => {
-            fileGroup.promise().done((fileInfo: any) => {
-                handleSetCounterImage(String(fileInfo.cdnUrl)); // Ensure it's a string
-            });
+        await updateDoc(doc(db, "users", user.uid), {
+            counterImage: deleteField()
         });
     };
 
@@ -149,24 +136,22 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
                     <CalendarIcon className="w-6 h-6 text-teal-300" />
                     <span>تعيين تاريخ بداية جديد</span>
                 </button>
-                {isDeveloper && (
-                    <>
-                        <button onClick={openUploadcareDialog} className="flex items-center gap-4 w-full p-3 rounded-lg hover:bg-white/10 transition-colors">
-                            <ImageIcon className="w-6 h-6 text-cyan-300" />
-                            <span>{hasCustomImage ? "تغيير صورة العداد" : "إضافة صورة للعداد"}</span>
-                        </button>
-                        {hasCustomImage && (
-                            <button onClick={() => setShowDeleteImageConfirm(true)} className="flex items-center gap-4 w-full p-3 rounded-lg hover:bg-white/10 transition-colors">
-                                <TrashIcon className="w-6 h-6 text-red-400" />
-                                <span className="text-red-400">حذف صورة العداد</span>
-                            </button>
-                        )}
-                    </>
+                
+                <button onClick={() => setShowImagePicker(true)} className="flex items-center gap-4 w-full p-3 rounded-lg hover:bg-white/10 transition-colors">
+                    <ImageIcon className="w-6 h-6 text-cyan-300" />
+                    <span>تغيير صورة العداد</span>
+                </button>
+                {hasCustomImage && (
+                    <button onClick={() => setShowDeleteImageConfirm(true)} className="flex items-center gap-4 w-full p-3 rounded-lg hover:bg-white/10 transition-colors">
+                        <TrashIcon className="w-6 h-6 text-red-400" />
+                        <span className="text-red-400">حذف صورة العداد</span>
+                    </button>
                 )}
             </div>
 
             {showResetConfirm && <ResetConfirmationModal onConfirm={handleResetCounter} onClose={() => setShowResetConfirm(false)} />}
             {showSetDateModal && <SetDateModal onSave={handleSetStartDate} onClose={() => setShowSetDateModal(false)} />}
+            <AvatarPickerModal isOpen={showImagePicker} onClose={() => setShowImagePicker(false)} onSelectAvatar={handleSetCounterImage} />
             {showDeleteImageConfirm && <DeleteImageConfirmationModal onConfirm={handleDeleteCounterImage} onClose={() => setShowDeleteImageConfirm(false)} />}
         </div>
     );

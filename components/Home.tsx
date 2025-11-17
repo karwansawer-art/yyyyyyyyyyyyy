@@ -116,7 +116,6 @@ const Home: React.FC<HomeProps> = ({
   userProfile,
 }) => {
     const startDate = userProfile.startDate;
-    const [globalCounterImage, setGlobalCounterImage] = useState<string | null>(null);
     const [now, setNow] = useState(() => new Date());
     const [showFreedomModelProgram, setShowFreedomModelProgram] = useState(false); // New state for the Freedom Model Program
     const [showRecoveryCompanionModal, setShowRecoveryCompanionModal] = useState(false);
@@ -187,18 +186,6 @@ const Home: React.FC<HomeProps> = ({
     }, [quotesSource.length]);
 
     useEffect(() => {
-        const configDocRef = doc(db, "app_config", "global_settings");
-        const unsubscribe = onSnapshot(configDocRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().counterImage) {
-                setGlobalCounterImage(docSnap.data().counterImage);
-            } else {
-                setGlobalCounterImage(null);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
-
-    useEffect(() => {
         if (!startDate) return;
         
         const intervalId = setInterval(() => {
@@ -216,9 +203,9 @@ const Home: React.FC<HomeProps> = ({
     const diff = startDate ? getTimeDifference(startDate, now) : { months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 };
     const today = new Date().toLocaleDateString('ar-IQ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    const currentCounterImage = globalCounterImage || defaultCounterImage;
+    const currentCounterImage = userProfile.counterImage || defaultCounterImage;
     const containerStyle = { backgroundImage: `url(${currentCounterImage})` };
-    const overlayClass = globalCounterImage ? 'bg-black/40' : 'bg-black/60'; // Darker for default image, lighter if custom might be light
+    const overlayClass = userProfile.counterImage ? 'bg-black/40' : 'bg-black/60'; // Darker for default image, lighter if custom might be light
     const counterContainerClasses = `w-full max-w-sm mx-auto p-4 rounded-2xl border border-white/10 relative overflow-hidden transition-all duration-500 bg-cover bg-center`;
 
 
