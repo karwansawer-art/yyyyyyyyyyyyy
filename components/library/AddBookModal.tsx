@@ -5,6 +5,8 @@ import { db } from '../../services/firebase.ts';
 import type { Book, LibraryCategory } from '../../types.ts';
 import { CloseIcon, Spinner } from '../ui/Icons.tsx';
 
+declare const uploadcare: any;
+
 interface EditBookModalProps {
     onClose: () => void;
     user: User;
@@ -15,13 +17,27 @@ interface EditBookModalProps {
 const EditBookModal: React.FC<EditBookModalProps> = ({ onClose, user, bookToEdit, categories }) => {
     const [title, setTitle] = useState(bookToEdit?.title || '');
     const [description, setDescription] = useState(bookToEdit?.description || '');
+    const [coverUrl, setCoverUrl] = useState<string | null>(bookToEdit?.coverUrl || null);
     const [fileUrl, setFileUrl] = useState<string | null>(bookToEdit?.fileUrl || null);
     const [categoryId, setCategoryId] = useState(bookToEdit?.categoryId || '');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        const coverWidget = uploadcare.Widget('#cover-uploader');
+        coverWidget.onUploadComplete((fileInfo: any) => {
+            setCoverUrl(String(fileInfo.cdnUrl));
+        });
+        if (bookToEdit?.coverUrl) {
+            coverWidget.value(bookToEdit.coverUrl);
+        } else {
+            coverWidget.value(null);
+        }
+    }, [bookToEdit]);
+
     const handleSave = async () => {
         if (!title.trim()) { setError("الرجاء إدخال عنوان الكتاب."); return; }
+        if (!coverUrl) { setError("الرجاء رفع صورة غلاف."); return; }
         if (!fileUrl) { setError("الرجاء إدخال رابط تحميل الكتاب."); return; }
         if (!categoryId) { setError("الرجاء اختيار قسمًا."); return; }
         
@@ -31,6 +47,7 @@ const EditBookModal: React.FC<EditBookModalProps> = ({ onClose, user, bookToEdit
         const bookData = {
             title,
             description,
+            coverUrl,
             fileUrl,
             categoryId,
             uploaderUid: user.uid,
@@ -86,6 +103,12 @@ const EditBookModal: React.FC<EditBookModalProps> = ({ onClose, user, bookToEdit
                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                     </select>
+
+                    <div>
+                        <label className="block text-sky-200 mb-2 font-semibold">غلاف الكتاب</label>
+                        <input type="hidden" role="uploadcare-uploader" id="cover-uploader" data-images-only data-crop="1:1.4" />
+                        {coverUrl && <img src={coverUrl} alt="Cover preview" className="mt-2 w-32 rounded-md" />}
+                    </div>
 
                      <div>
                         <label htmlFor="file-url-input" className="block text-sky-200 mb-2 font-semibold">رابط تحميل الكتاب (MediaFire)</label>

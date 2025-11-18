@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { User } from 'firebase/auth';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase.ts';
 import type { Book, LibraryCategory } from '../types.ts';
-import { PlusIcon, TrashIcon, EditIcon, SettingsIcon, SearchIcon, ImageIcon } from './ui/Icons.tsx';
+import { PlusIcon, TrashIcon, EditIcon, SettingsIcon, SearchIcon } from './ui/Icons.tsx';
 import EditBookModal from './library/AddBookModal.tsx';
 import ManageCategoriesModal from './library/ManageCategoriesModal.tsx';
-import BookIconPickerModal from './library/BookIconPickerModal.tsx';
 
 interface LibraryProps {
     user: User;
@@ -24,9 +23,6 @@ const Library: React.FC<LibraryProps> = ({ user, isDeveloper }) => {
     const [bookToEdit, setBookToEdit] = useState<Book | null>(null);
     const [showManageCategoriesModal, setShowManageCategoriesModal] = useState(false);
     const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
-    
-    const [bookCoverIcon, setBookCoverIcon] = useState<string>('📖');
-    const [showIconPicker, setShowIconPicker] = useState(false);
 
     useEffect(() => {
         const booksQuery = query(collection(db, 'library'), orderBy('createdAt', 'asc'));
@@ -45,19 +41,9 @@ const Library: React.FC<LibraryProps> = ({ user, isDeveloper }) => {
             setCategories(fetchedCategories);
         });
 
-        const configRef = doc(db, 'app_config', 'library_config');
-        const unsubscribeConfig = onSnapshot(configRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().bookCoverIcon) {
-                setBookCoverIcon(docSnap.data().bookCoverIcon);
-            } else {
-                setBookCoverIcon('📖'); // Default if not set
-            }
-        });
-
         return () => {
             unsubscribeBooks();
             unsubscribeCategories();
-            unsubscribeConfig();
         };
     }, []);
 
@@ -83,15 +69,6 @@ const Library: React.FC<LibraryProps> = ({ user, isDeveloper }) => {
         }
     };
 
-    const handleSelectIcon = async (icon: string) => {
-        try {
-            const configRef = doc(db, 'app_config', 'library_config');
-            await setDoc(configRef, { bookCoverIcon: icon }, { merge: true });
-        } catch (error) {
-            console.error("Error setting book cover icon:", error);
-        }
-    };
-
     const filteredBooks = useMemo(() => {
         let booksToShow = books;
 
@@ -113,18 +90,13 @@ const Library: React.FC<LibraryProps> = ({ user, isDeveloper }) => {
     return (
         <div className="text-white pb-20">
             <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-sm z-10 flex justify-between items-center p-4 bg-sky-950/80 backdrop-blur-sm">
-                <div className="w-10"></div>
+                {isDeveloper ? <div className="w-10"></div> : <div/>}
                 <h1 className="text-2xl font-bold text-white text-shadow">المكتبة</h1>
-                {isDeveloper ? (
-                     <div className="flex items-center gap-2">
-                        <button onClick={() => setShowIconPicker(true)} className="p-2 rounded-full hover:bg-white/10" aria-label="تغيير أيقونة الكتب">
-                            <ImageIcon className="w-6 h-6" />
-                        </button>
-                        <button onClick={() => setShowManageCategoriesModal(true)} className="p-2 rounded-full hover:bg-white/10" aria-label="إدارة الأقسام">
-                            <SettingsIcon className="w-6 h-6" />
-                        </button>
-                    </div>
-                ): <div className="w-10"></div>}
+                {isDeveloper && (
+                    <button onClick={() => setShowManageCategoriesModal(true)} className="p-2 rounded-full hover:bg-white/10" aria-label="إدارة الأقسام">
+                        <SettingsIcon className="w-6 h-6" />
+                    </button>
+                )}
             </header>
 
             <div className="pt-20 px-4">
@@ -164,13 +136,13 @@ const Library: React.FC<LibraryProps> = ({ user, isDeveloper }) => {
                     <p className="col-span-2 text-center text-sky-300 py-10">جارِ تحميل الكتب...</p>
                 ) : filteredBooks.length > 0 ? (
                     filteredBooks.map(book => (
-                        <div key={book.id} className="group relative bg-sky-900/40 rounded-lg border border-sky-700/50 shadow-lg flex flex-col p-4 justify-between aspect-[3/4]">
-                            <div className="flex-grow flex items-center justify-center">
-                                <span className="text-7xl transition-transform duration-300 group-hover:scale-110">{bookCoverIcon}</span>
-                            </div>
-                            <div className="flex-shrink-0 mt-auto pt-2 text-center">
-                                <h3 className="font-bold text-base text-sky-200 text-center line-clamp-2 mb-3 h-12 flex items-center justify-center">{book.title}</h3>
-                                <div className="flex justify-around items-center">
+                        <div key={book.id} className="group relative bg-sky-900/40 rounded-lg overflow-hidden border border-sky-700/50 shadow-lg flex flex-col">
+                            <a href={book.fileUrl} target="_blank" rel="noopener noreferrer" className="block">
+                                <img src={book.coverUrl} alt={book.title} className="w-full aspect-[3/4] object-cover transition-transform duration-300 group-hover:scale-105" />
+                            </a>
+                            <div className="p-3 flex flex-col flex-grow">
+                                <h3 className="font-bold text-sm text-sky-200 truncate text-center">{book.title}</h3>
+                                <div className="flex justify-around items-center mt-auto pt-2">
                                     <a href={book.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold bg-sky-600/80 hover:bg-sky-500/80 px-4 py-1 rounded-full transition-colors text-center">
                                         عرض
                                     </a>
@@ -223,13 +195,6 @@ const Library: React.FC<LibraryProps> = ({ user, isDeveloper }) => {
                         </div>
                     </div>
                 </div>
-            )}
-             {isDeveloper && (
-                <BookIconPickerModal 
-                    isOpen={showIconPicker}
-                    onClose={() => setShowIconPicker(false)}
-                    onSelectIcon={handleSelectIcon}
-                />
             )}
         </div>
     );
