@@ -2,19 +2,19 @@ import React from 'react';
 import { CloseIcon } from './Icons.tsx';
 
 export const AVATAR_OPTIONS = [
-    // A fresh set of reliable nature landscape images
-    'https://images.unsplash.com/photo-1434725039720-aaad6dd32dfe?q=80&w=400&auto=format&fit=crop', // 1. Misty mountains
-    'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=400&auto=format&fit=crop', // 2. Green forest path
-    'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=400&auto=format&fit=crop', // 3. Beach with rock (Replaced)
-    'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=80&w=400&auto=format&fit=crop', // 4. Desert landscape
-    'https://images.unsplash.com/photo-1487088678257-3a541e6e3922?q=80&w=400&auto=format&fit=crop', // 5. Starry night sky
-    'https://images.unsplash.com/photo-1598449356475-b9f71db7d847?q=80&w=400&auto=format&fit=crop', // 6. Green terraced hills
-    'https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=400&auto=format&fit=crop', // 7. Lakeside mountain view (Replaced)
-    'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=400&auto=format&fit=crop', // 8. Snowy mountain peak
-    'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?q=80&w=400&auto=format&fit=crop', // 9. Pink sunset over water (Replaced)
-    'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=400&auto=format&fit=crop', // 10. Northern Lights (Aurora)
-    'https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=400&auto=format&fit=crop', // 11. Majestic waterfall (Replaced)
-    'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=400&auto=format&fit=crop'  // 12. Autumn forest
+    // A fresh set of reliable nature landscape images, now with higher resolution
+    'https://images.unsplash.com/photo-1434725039720-aaad6dd32dfe?q=80&w=1200&auto=format&fit=crop', // 1. Misty mountains
+    'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1200&auto=format&fit=crop', // 2. Green forest path
+    'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=1200&auto=format&fit=crop', // 3. Beach with rock
+    'https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?q=80&w=1200&auto=format&fit=crop', // 4. Desert landscape
+    'https://images.unsplash.com/photo-1487088678257-3a541e6e3922?q=80&w=1200&auto=format&fit=crop', // 5. Starry night sky
+    'https://images.unsplash.com/photo-1598449356475-b9f71db7d847?q=80&w=1200&auto=format&fit=crop', // 6. Green terraced hills
+    'https://images.unsplash.com/photo-1501854140801-50d01698950b?q=80&w=1200&auto=format&fit=crop', // 7. Lakeside mountain view
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1200&auto=format&fit=crop', // 8. Snowy mountain peak
+    'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?q=80&w=1200&auto=format&fit=crop', // 9. Pink sunset over water
+    'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=1200&auto=format&fit=crop', // 10. Northern Lights (Aurora)
+    'https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=1200&auto=format&fit=crop', // 11. Majestic waterfall
+    'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=1200&auto=format&fit=crop'  // 12. Autumn forest
 ];
 
 

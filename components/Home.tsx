@@ -205,7 +205,6 @@ const Home: React.FC<HomeProps> = ({
 
     const currentCounterImage = userProfile.counterImage || defaultCounterImage;
     const containerStyle = { backgroundImage: `url(${currentCounterImage})` };
-    const overlayClass = userProfile.counterImage ? 'bg-black/40' : 'bg-black/60'; // Darker for default image, lighter if custom might be light
     const counterContainerClasses = `w-full max-w-sm mx-auto p-4 rounded-2xl border border-white/10 relative overflow-hidden transition-all duration-500 bg-cover bg-center`;
 
 
@@ -289,7 +288,6 @@ const Home: React.FC<HomeProps> = ({
             </header>
             <main className="pt-8">
               <div style={containerStyle} className={`${counterContainerClasses} min-h-[350px] flex flex-col`}>
-                <div className={`absolute inset-0 ${overlayClass} rounded-2xl`}></div> {/* Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <CounterIcon className="w-36 h-36 text-white/10" />
                 </div>
@@ -359,7 +357,6 @@ const Home: React.FC<HomeProps> = ({
             </header>
             <main className="pt-8">
                 <div style={containerStyle} className={counterContainerClasses}>
-                    <div className={`absolute inset-0 ${overlayClass} rounded-2xl`}></div> {/* Overlay */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <CounterIcon className="w-36 h-36 text-white/10" />
                     </div>
