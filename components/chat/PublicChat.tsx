@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
-import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase.ts';
 import type { UserProfile, Message, PinnedMessage, AlertType } from '../../types.ts';
 import { CloseIcon, SendIcon, OptionsIcon, PinIcon, CheckIcon, TrashIcon, ChevronDownIcon, CameraIcon } from '../ui/Icons.tsx';
@@ -84,7 +84,7 @@ const PublicChat: React.FC<PublicChatProps> = ({ user, currentUserProfile, block
     
     // Fetch messages
     useEffect(() => {
-        const q = query(collection(db, 'public_chat'), orderBy('timestamp', 'desc'), limit(50));
+        const q = query(collection(db, 'public_chat'), orderBy('timestamp', 'desc'), limit(600));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)).reverse();
             setMessages(fetchedMessages.filter(m => !blockedUsers.includes(m.uid)));
@@ -223,6 +223,21 @@ const PublicChat: React.FC<PublicChatProps> = ({ user, currentUserProfile, block
                     photoURL: currentUserProfile.photoURL || null,
                     replyTo: replyTo ? { id: replyTo.id, text: replyTo.text, displayName: replyTo.displayName } : null,
                 });
+                
+                // Cleanup logic to keep only the latest 600 messages
+                const messagesRef = collection(db, 'public_chat');
+                // Query all messages to get the count
+                const q = query(messagesRef, orderBy('timestamp', 'desc'));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.size > 600) {
+                    const batch = writeBatch(db);
+                    const docsToDelete = snapshot.docs.slice(600); // Oldest messages are at the end
+                    docsToDelete.forEach(docToDelete => {
+                        batch.delete(docToDelete.ref);
+                    });
+                    await batch.commit();
+                }
             }
             setNewMessage('');
             setReplyTo(null);
