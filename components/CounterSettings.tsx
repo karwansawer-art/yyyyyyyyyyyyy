@@ -5,6 +5,7 @@ import { db } from '../services/firebase.ts';
 import type { UserProfile, Tab } from '../types.ts';
 import { BackIcon, ResetIcon, CalendarIcon, ImageIcon, TrashIcon } from './ui/Icons.tsx';
 import AvatarPickerModal from './ui/AvatarPickerModal.tsx';
+import { BADGES } from '../services/badges.ts';
 
 const SetDateModal: React.FC<{ onClose: () => void; onSave: (dateTime: string) => void; }> = ({ onClose, onSave }) => {
     const now = new Date();
@@ -94,11 +95,10 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
     const hasCustomImage = !!userProfile?.counterImage;
 
     const clearBadgeHistory = () => {
-        for (const key in localStorage) {
-            if (key.startsWith(`celebrated_${user.uid}_`)) {
-                localStorage.removeItem(key);
-            }
-        }
+        BADGES.forEach(badge => {
+            const key = `celebrated_${user.uid}_${badge.days}`;
+            localStorage.removeItem(key);
+        });
     };
 
     const handleResetCounter = () => {
