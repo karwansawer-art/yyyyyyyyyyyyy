@@ -179,7 +179,7 @@ export const PinIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 // New Icon: UnpinIcon
 export const UnpinIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="2">
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M14 8.25l-2-2m0 0L8.25 4.5 14 8.25zm0 0L19.5 13.75l-2 2m0 0L14 8.25m-6 6l-2 2L4.5 19.5l3.75-2.25m0 0l2-2m-2 2l-3.75-2.25m0 0L4.5 13.75l2-2m0 0l3.75 2.25M14 8.25L4.5 19.5" />
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 8l-8 8" />
   </svg>
