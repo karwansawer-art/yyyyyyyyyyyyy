@@ -109,7 +109,22 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
     };
 
     const handleSetStartDate = (dateTime: string) => {
-        const startDate = new Date(dateTime);
+        // Fix: Manually parse the dateTime string to prevent cross-browser issues.
+        // The format is 'YYYY-MM-DDTHH:MM'.
+        const [datePart, timePart] = dateTime.split('T');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
+        
+        // Month is 0-indexed in the Date constructor, so subtract 1.
+        const startDate = new Date(year, month - 1, day, hours, minutes);
+
+        if (isNaN(startDate.getTime())) {
+            console.error("Invalid date created from string:", dateTime);
+            // Optionally show an error to the user
+            setShowSetDateModal(false);
+            return;
+        }
+
         setDoc(doc(db, "users", user.uid), { startDate }, { merge: true });
         clearBadgeHistory();
         setShowSetDateModal(false);
