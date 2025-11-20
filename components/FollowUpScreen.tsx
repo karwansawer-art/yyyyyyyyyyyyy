@@ -31,7 +31,14 @@ const GLOBAL_CONSTRAINTS = "تكلم بلهجة سعودية (نجدية) عام
 async function getAnalysis(persona: AnalyticalPersona, data: PerformanceData): Promise<string> {
     let systemInstruction = '';
     
-    const performanceDataString = JSON.stringify(data, null, 2);
+    let performanceDataString = '';
+    try {
+        performanceDataString = JSON.stringify(data, null, 2);
+    } catch (e) {
+        console.error("JSON stringify error in getAnalysis:", e);
+        performanceDataString = "Error: Could not serialize data due to circular reference.";
+    }
+
     const userPrompt = `
         حلل بيانات المستخدم هذي من زاويتك الخاصة
         ابي تحليل مفصل وطويل (ثلاث فقرات او اكثر)
@@ -221,13 +228,14 @@ const CoachAnalysisModal: React.FC<{
             startDate.setHours(0, 0, 0, 0);
             const streak = Math.max(0, Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
+            // Sanitize data to ensure no circular references (e.g. Firestore objects) are passed
             const dataForAI: PerformanceData = {
                 username: userProfile.displayName || user.email || "المتعافي",
                 streak: streak,
-                lastStatus: lastStatus,
+                lastStatus: (typeof lastStatus === 'string' ? lastStatus : 'absent') as any,
                 logHistory: sortedLogs.slice(0, 30).map(log => ({
                     date: getISODate(new Date(log.timestamp)),
-                    status: log.status,
+                    status: typeof log.status === 'string' ? log.status : 'unknown',
                 })),
                 commonTriggers: [], 
             };
