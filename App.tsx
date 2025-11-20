@@ -30,11 +30,34 @@ const App: React.FC = () => {
           if (docSnap.exists()) {
             const data = docSnap.data();
 
-            const firestoreStartDate = (data.startDate as Timestamp)?.toDate();
+            // --- Robust Date Parsing Logic (Fix for Resetting Issue) ---
+            const getFirestoreDate = (field: any): Date | undefined => {
+                if (!field) return undefined;
+                // Handle Firestore Timestamp
+                if (typeof field.toDate === 'function') {
+                    return field.toDate();
+                }
+                // Handle Standard JS Date
+                if (field instanceof Date) {
+                    return field;
+                }
+                // Handle String (ISO or other formats)
+                if (typeof field === 'string') {
+                    const d = new Date(field);
+                    return isNaN(d.getTime()) ? undefined : d;
+                }
+                // Handle Number (Timestamp in milliseconds)
+                if (typeof field === 'number') {
+                    return new Date(field);
+                }
+                return undefined;
+            };
+
+            const firestoreStartDate = getFirestoreDate(data.startDate);
             let finalStartDate: Date | undefined = firestoreStartDate;
             let sourcedFromCache = false;
 
-            // If Firestore data is missing startDate, check localStorage as a fallback.
+            // If Firestore data is missing startDate or invalid, check localStorage as a safety net.
             if (!finalStartDate) {
                 try {
                     const cachedStartDate = localStorage.getItem(`user_startDate_${user.uid}`);
@@ -42,7 +65,7 @@ const App: React.FC = () => {
                         const cachedDate = new Date(cachedStartDate);
                         // Check if the cached date is valid before using it
                         if (!isNaN(cachedDate.getTime())) {
-                            console.warn("Using cached startDate as a fallback due to missing Firestore data.");
+                            console.warn("Recovered startDate from localStorage due to missing/invalid Firestore data.");
                             finalStartDate = cachedDate;
                             sourcedFromCache = true; // Mark that we got it from the cache
                         }
@@ -54,9 +77,9 @@ const App: React.FC = () => {
             
             // If we have a valid startDate...
             if (finalStartDate) {
-                // ...and it came from the cache (meaning Firestore is out of sync), write it back to Firestore.
+                // ...and it came from the cache (meaning Firestore is out of sync or empty), write it back to Firestore.
                 if (sourcedFromCache) {
-                    console.log("Restoring startDate to Firestore from local cache.");
+                    console.log("Restoring startDate to Firestore from local cache to fix account.");
                     updateDoc(userDocRef, { startDate: finalStartDate }).catch(error => {
                         console.error("Failed to restore startDate to Firestore:", error);
                     });

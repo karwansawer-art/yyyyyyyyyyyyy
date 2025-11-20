@@ -95,6 +95,7 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
     const hasCustomImage = !!userProfile?.counterImage;
 
     const clearBadgeHistory = () => {
+        // Efficiently remove badge keys without iterating over the entire localStorage
         BADGES.forEach(badge => {
             const key = `celebrated_${user.uid}_${badge.days}`;
             localStorage.removeItem(key);
@@ -104,6 +105,12 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
     const handleResetCounter = () => {
         setShowResetConfirm(false);
         const now = new Date();
+        // Update LocalStorage immediately for instant UI response
+        try {
+            localStorage.setItem(`user_startDate_${user.uid}`, now.toISOString());
+        } catch (e) {
+            console.error("Failed to update localStorage on reset", e);
+        }
         setDoc(doc(db, "users", user.uid), { startDate: now }, { merge: true });
         clearBadgeHistory();
     };
@@ -123,6 +130,13 @@ const CounterSettings: React.FC<CounterSettingsProps> = ({ user, userProfile, se
             // Optionally show an error to the user
             setShowSetDateModal(false);
             return;
+        }
+
+        // Update LocalStorage immediately for instant UI response
+        try {
+            localStorage.setItem(`user_startDate_${user.uid}`, startDate.toISOString());
+        } catch (e) {
+            console.error("Failed to update localStorage on set date", e);
         }
 
         setDoc(doc(db, "users", user.uid), { startDate }, { merge: true });
