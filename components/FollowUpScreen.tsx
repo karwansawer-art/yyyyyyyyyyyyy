@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { collection, query, onSnapshot, doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
@@ -340,6 +341,7 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
     const [showSlipUpWarning, setShowSlipUpWarning] = useState(false);
     const [showSlipUpConfirm, setShowSlipUpConfirm] = useState(false);
     const [showCoachModal, setShowCoachModal] = useState(false);
+    const [selectedDateForEdit, setSelectedDateForEdit] = useState<Date | null>(null);
     const backfillAttempted = useRef(false);
 
     useEffect(() => {
@@ -434,19 +436,32 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
             return;
         }
         
-        const todayKey = getISODate(new Date());
-        const logRef = doc(db, 'users', user.uid, 'followUpLogs', todayKey);
-        try { await setDoc(logRef, { status, timestamp: serverTimestamp() }, { merge: true }); }
+        // Determine if we are logging for today or a selected past date
+        const targetDate = selectedDateForEdit || new Date();
+        const dateKey = getISODate(targetDate);
+        
+        const logRef = doc(db, 'users', user.uid, 'followUpLogs', dateKey);
+        try { 
+            await setDoc(logRef, { status, timestamp: selectedDateForEdit ? Timestamp.fromDate(selectedDateForEdit) : serverTimestamp() }, { merge: true }); 
+        }
         catch (error) { console.error("Error logging status:", error); }
+        
+        // Reset selected date
+        setSelectedDateForEdit(null);
     };
     
     const handleConfirmRelapse = async () => {
         setShowRelapseConfirm(false);
-        const newStartDate = new Date();
+        // If a past date was selected, use it as the new start date. Otherwise use now.
+        const newStartDate = selectedDateForEdit || new Date();
         try {
-            const todayKey = getISODate(new Date());
-            const logRef = doc(db, 'users', user.uid, 'followUpLogs', todayKey);
-            await setDoc(logRef, { status: 'relapse', timestamp: serverTimestamp() }, { merge: true });
+            const dateKey = getISODate(newStartDate);
+            const logRef = doc(db, 'users', user.uid, 'followUpLogs', dateKey);
+            
+            // If it's a past date, use Timestamp.fromDate, else serverTimestamp
+            const timestampValue = selectedDateForEdit ? Timestamp.fromDate(selectedDateForEdit) : serverTimestamp();
+            
+            await setDoc(logRef, { status: 'relapse', timestamp: timestampValue }, { merge: true });
             const userDocRef = doc(db, 'users', user.uid);
             await setDoc(userDocRef, { startDate: newStartDate }, { merge: true });
 
@@ -454,29 +469,44 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
                 if (key.startsWith(`celebrated_${user.uid}_`)) { localStorage.removeItem(key); }
             }
         } catch (error) { console.error("Error confirming relapse:", error); }
+        
+        setSelectedDateForEdit(null);
     };
     
     const handleFirstSlipUp = async () => {
         setShowSlipUpWarning(false);
-        const todayKey = getISODate(new Date());
-        const logRef = doc(db, 'users', user.uid, 'followUpLogs', todayKey);
-        try { await setDoc(logRef, { status: 'slip_up', timestamp: serverTimestamp() }, { merge: true }); }
+        const targetDate = selectedDateForEdit || new Date();
+        const dateKey = getISODate(targetDate);
+        const logRef = doc(db, 'users', user.uid, 'followUpLogs', dateKey);
+        
+        const timestampValue = selectedDateForEdit ? Timestamp.fromDate(selectedDateForEdit) : serverTimestamp();
+
+        try { 
+            await setDoc(logRef, { status: 'slip_up', timestamp: timestampValue }, { merge: true }); 
+        }
         catch (error) { console.error("Error logging first slip-up:", error); }
+        
+        setSelectedDateForEdit(null);
     };
 
     const handleConfirmSlipUpReset = async () => {
         setShowSlipUpConfirm(false);
-        const newStartDate = new Date();
+        const newStartDate = selectedDateForEdit || new Date();
         try {
-            const todayKey = getISODate(new Date());
-            const logRef = doc(db, 'users', user.uid, 'followUpLogs', todayKey);
-            await setDoc(logRef, { status: 'slip_up', timestamp: serverTimestamp() }, { merge: true });
+            const dateKey = getISODate(newStartDate);
+            const logRef = doc(db, 'users', user.uid, 'followUpLogs', dateKey);
+            
+            const timestampValue = selectedDateForEdit ? Timestamp.fromDate(selectedDateForEdit) : serverTimestamp();
+
+            await setDoc(logRef, { status: 'slip_up', timestamp: timestampValue }, { merge: true });
             const userDocRef = doc(db, 'users', user.uid);
             await setDoc(userDocRef, { startDate: newStartDate }, { merge: true });
             for (const key in localStorage) {
                 if (key.startsWith(`celebrated_${user.uid}_`)) { localStorage.removeItem(key); }
             }
         } catch (error) { console.error("Error confirming slip-up reset:", error); }
+        
+        setSelectedDateForEdit(null);
     };
     
     const changeMonth = (amount: number) => {
@@ -486,6 +516,16 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
             newDate.setMonth(newDate.getMonth() + amount);
             return newDate;
         });
+    };
+
+    const handleDayClick = (day: Date) => {
+        // Allow selecting today or past dates
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today to ensure today is included
+        if (day <= today) {
+            setSelectedDateForEdit(day);
+            setShowLogModal(true);
+        }
     };
 
     const calendarDays = useMemo(() => {
@@ -553,8 +593,16 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
                             const startDate = userProfile?.startDate ? new Date(userProfile.startDate) : null;
                             const isPast = dateKey < todayKey && startDate && day >= startDate;
                             const statusToUse = log ? log.status : (isPast ? 'absent' : null);
-                            const dayContainerClasses = ['h-10 w-10 flex items-center justify-center rounded-full transition-colors'];
+                            
+                            // Determine styling based on status or if interactive
+                            const isFuture = day > new Date();
+                            const dayContainerClasses = [
+                                'h-10 w-10 flex items-center justify-center rounded-full transition-all duration-200 relative',
+                                !isFuture ? 'cursor-pointer hover:scale-110 hover:shadow-md' : 'opacity-50 cursor-default'
+                            ];
+                            
                             const dayTextClasses = ['text-sm font-semibold'];
+                            
                             if (statusToUse) {
                                 dayContainerClasses.push(STATUS_CONFIG[statusToUse].color);
                                 dayTextClasses.push('text-white');
@@ -563,10 +611,20 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
                                 dayTextClasses.push('text-sky-950');
                             } else {
                                 dayTextClasses.push('text-sky-200');
+                                if (!isFuture) {
+                                    dayContainerClasses.push('hover:bg-sky-800/50');
+                                }
                             }
                             return (
-                                <div key={dateKey} className={dayContainerClasses.join(' ')}>
+                                <div 
+                                    key={dateKey} 
+                                    className={dayContainerClasses.join(' ')}
+                                    onClick={() => !isFuture && handleDayClick(day)}
+                                >
                                     <span className={dayTextClasses.join(' ')}>{day.getDate()}</span>
+                                    {!isFuture && !statusToUse && !isToday && (
+                                        <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-sky-400/50 rounded-full"></span>
+                                    )}
                                 </div>
                             );
                         })}
@@ -598,13 +656,20 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
             {showLogModal && (
                 <div 
                     className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center z-50 transition-opacity" 
-                    onClick={() => setShowLogModal(false)}
+                    onClick={() => {
+                        setShowLogModal(false);
+                        setSelectedDateForEdit(null); // Reset if closed without selecting
+                    }}
                 >
                     <div 
                         className="w-full max-w-md bg-sky-950/90 border-t-2 border-sky-500/50 rounded-t-2xl p-6 space-y-4" 
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 className="text-xl font-semibold text-sky-200 text-center mb-4">كيف كان يومك اليوم؟</h2>
+                        <h2 className="text-xl font-semibold text-sky-200 text-center mb-4">
+                             {selectedDateForEdit 
+                                ? `تحديد حالة يوم ${selectedDateForEdit.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}` 
+                                : "كيف كان يومك اليوم؟"}
+                        </h2>
                         <div className="grid grid-cols-3 gap-4">
                             {(Object.keys(STATUS_CONFIG) as FollowUpStatus[])
                                 .filter(status => status !== 'absent')
@@ -629,21 +694,24 @@ const FollowUpScreen: React.FC<FollowUpScreenProps> = ({ user, userProfile }) =>
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
                     <div className="w-full max-w-sm bg-sky-950 border border-yellow-500/50 rounded-lg p-6 space-y-4 text-white">
                         <h3 className="text-xl font-bold text-yellow-400 text-center">تأكيد الانتكاسة</h3>
-                        <p className="text-sky-200 text-center">هل أنت متأكد؟ سيؤدي هذا إلى تصفير عداد الأيام الخاص بك وبدء العد من جديد.</p>
+                        <p className="text-sky-200 text-center">هل أنت متأكد؟ سيؤدي هذا إلى تصفير عداد الأيام الخاص بك وبدء العد من جديد {selectedDateForEdit ? 'من التاريخ المحدد' : ''}.</p>
                         <div className="flex justify-center gap-4 pt-4">
-                            <button onClick={() => setShowRelapseConfirm(false)} className="px-6 py-2 font-semibold text-white rounded-md bg-gray-600 hover:bg-gray-500">إلغاء</button>
+                            <button onClick={() => { setShowRelapseConfirm(false); setSelectedDateForEdit(null); }} className="px-6 py-2 font-semibold text-white rounded-md bg-gray-600 hover:bg-gray-500">إلغاء</button>
                             <button onClick={handleConfirmRelapse} className="px-6 py-2 font-semibold text-white rounded-md bg-yellow-600 hover:bg-yellow-500">نعم، أؤكد</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {showSlipUpWarning && <SlipUpWarningModal onConfirm={handleFirstSlipUp} onClose={() => setShowSlipUpWarning(false)} />}
-            {showSlipUpConfirm && <SlipUpConfirmModal onConfirm={handleConfirmSlipUpReset} onClose={() => setShowSlipUpConfirm(false)} />}
+            {showSlipUpWarning && <SlipUpWarningModal onConfirm={handleFirstSlipUp} onClose={() => { setShowSlipUpWarning(false); setSelectedDateForEdit(null); }} />}
+            {showSlipUpConfirm && <SlipUpConfirmModal onConfirm={handleConfirmSlipUpReset} onClose={() => { setShowSlipUpConfirm(false); setSelectedDateForEdit(null); }} />}
 
             {/* دوگمەی ئەسڵی '+' */}
             <button
-                onClick={() => setShowLogModal(true)}
+                onClick={() => {
+                    setSelectedDateForEdit(null); // Ensure we are logging for today
+                    setShowLogModal(true);
+                }}
                 className="fixed z-40 left-6 bottom-20 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-teal-500 to-sky-600 text-white shadow-lg hover:scale-110 transition-transform duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-sky-950/50 focus:ring-teal-400"
                 aria-label="تسجيل حالة اليوم"
             >
